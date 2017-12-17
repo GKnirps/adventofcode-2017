@@ -14,7 +14,7 @@ fn main() {
             let input = read_and_parse(&Path::new(filename));
             match input {
                 Ok(rows) => {
-                    println!("Checksum is: {}", checksum(&rows));
+                    println!("Checksum is: {}", division_checksum(&rows));
                 }
                 Err(err) => {
                     println!("Unable to read input: {}", err);
@@ -52,6 +52,28 @@ fn row_sum(row: &[i32]) -> i32 {
     let max = row.iter().max().unwrap_or(&0);
 
     return max - min;
+}
+
+fn even_divide_row(row: &[i32]) -> i32 {
+    let len = row.len();
+    if len < 2 {
+        return 0;
+    }
+    for i in 0..(len - 1) {
+        for j in i + 1..len {
+            if row[i] % row[j] == 0 {
+                return row[i] / row[j];
+            }
+            if row[j] % row[i] == 0 {
+                return row[j] / row[i];
+            }
+        }
+    }
+    return 0;
+}
+
+fn division_checksum(rows: &[Vec<i32>]) -> i32 {
+    return rows.iter().map(|row| even_divide_row(&row)).sum();
 }
 
 #[cfg(test)]
@@ -125,5 +147,32 @@ mod tests {
 
         // then
         assert_eq!(result, 18);
+    }
+
+    #[test]
+    fn even_divide_row_should_calculate_correctly() {
+        // given
+        let test_data: &[(Vec<i32>, i32)] = &[
+            (vec![5, 9, 2, 8], 4),
+            (vec![9, 4, 7, 3], 3),
+            (vec![3, 8, 6, 5], 2),
+        ];
+
+        // when
+        for &(ref input, output) in test_data {
+            assert_eq!(even_divide_row(input), output);
+        }
+    }
+
+    #[test]
+    fn division_checksum_should_add_up_row_sums() {
+        // given
+        let input = &[vec![5, 9, 2, 8], vec![9, 4, 7, 3], vec![3, 8, 6, 5]];
+
+        // when
+        let result = division_checksum(input);
+
+        // then
+        assert_eq!(result, 9);
     }
 }
