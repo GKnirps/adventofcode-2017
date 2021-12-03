@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -14,23 +14,29 @@ fn main() -> Result<(), String> {
         .map(|s| s.parse::<u32>().map_err(|e| e.to_string()))
         .collect::<Result<Vec<u32>, String>>()?;
 
-    let relocates_until_repeat = count_relocate_until_repeat(banks);
+    let (relocates_until_repeat, loop_size) = count_relocate_until_repeat(banks);
     println!(
-        "{} relocates until the memory pattern repeats",
-        relocates_until_repeat
+        "{} relocates until the memory pattern repeats, loop_size is {}",
+        relocates_until_repeat, loop_size,
     );
 
     Ok(())
 }
 
-fn count_relocate_until_repeat(banks: Vec<u32>) -> usize {
+fn count_relocate_until_repeat(banks: Vec<u32>) -> (usize, usize) {
     let mut current: Vec<u32> = banks;
-    let mut seen: HashSet<Vec<u32>> = HashSet::with_capacity(256);
-    while !seen.contains(&current) {
-        seen.insert(current.clone());
+    let mut seen: HashMap<Vec<u32>, usize> = HashMap::with_capacity(256);
+    while !seen.contains_key(&current) {
+        seen.insert(current.clone(), seen.len());
         current = relocate(current);
     }
-    seen.len()
+    (
+        seen.len(),
+        seen.len()
+            - *seen
+                .get(&current)
+                .expect("expected element to be seen after loop finished"),
+    )
 }
 
 fn relocate(mut banks: Vec<u32>) -> Vec<u32> {
@@ -78,9 +84,10 @@ mod test {
         let banks = vec![0, 2, 7, 0];
 
         // when
-        let count = count_relocate_until_repeat(banks);
+        let (count, loop_size) = count_relocate_until_repeat(banks);
 
         // then
         assert_eq!(count, 5);
+        assert_eq!(loop_size, 4);
     }
 }
