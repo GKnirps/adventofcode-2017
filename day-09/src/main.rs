@@ -8,8 +8,8 @@ fn main() -> Result<(), String> {
         .ok_or_else(|| "No file name given.".to_owned())?;
     let content = read_to_string(Path::new(&filename)).map_err(|e| e.to_string())?;
 
-    let group_score = score_groups(content.trim())?;
-    println!("Total group score is {group_score}");
+    let (group_score, garbage_count) = score_groups(content.trim())?;
+    println!("Total group score is {group_score}, the garbage count is {garbage_count}.");
 
     Ok(())
 }
@@ -22,10 +22,11 @@ enum State {
     Cancel,
 }
 
-fn score_groups(input: &str) -> Result<u32, String> {
+fn score_groups(input: &str) -> Result<(u32, u32), String> {
     let mut depth: u32 = 0;
     let mut state = State::Default;
     let mut score: u32 = 0;
+    let mut garbage_count: u32 = 0;
     for (i, c) in input.chars().enumerate() {
         match (state, c) {
             (State::Default, '{') => {
@@ -51,7 +52,9 @@ fn score_groups(input: &str) -> Result<u32, String> {
             (State::Garbage, '!') => {
                 state = State::Cancel;
             }
-            (State::Garbage, _) => (),
+            (State::Garbage, _) => {
+                garbage_count += 1;
+            }
             (State::Cancel, _) => {
                 state = State::Garbage;
             }
@@ -61,7 +64,7 @@ fn score_groups(input: &str) -> Result<u32, String> {
         }
     }
     if depth == 0 {
-        Ok(score)
+        Ok((score, garbage_count))
     } else {
         Err(format!("{depth} unclosed groups at end of input"))
     }
@@ -73,13 +76,13 @@ mod test {
 
     #[test]
     fn score_groups_works_for_example() {
-        assert_eq!(score_groups("{}"), Ok(1));
-        assert_eq!(score_groups("{{{}}}"), Ok(6));
-        assert_eq!(score_groups("{{},{}}"), Ok(5));
-        assert_eq!(score_groups("{{{},{},{{}}}}"), Ok(16));
-        assert_eq!(score_groups("{<a>,<a>,<a>,<a>}"), Ok(1));
-        assert_eq!(score_groups("{{<ab>},{<ab>},{<ab>},{<ab>}}"), Ok(9));
-        assert_eq!(score_groups("{{<!!>},{<!!>},{<!!>},{<!!>}}"), Ok(9));
-        assert_eq!(score_groups("{{<a!>},{<a!>},{<a!>},{<ab>}}"), Ok(3));
+        assert_eq!(score_groups("{}"), Ok((1, 0)));
+        assert_eq!(score_groups("{{{}}}"), Ok((6, 0)));
+        assert_eq!(score_groups("{{},{}}"), Ok((5, 0)));
+        assert_eq!(score_groups("{{{},{},{{}}}}"), Ok((16, 0)));
+        assert_eq!(score_groups("{<a>,<a>,<a>,<a>}"), Ok((1, 4)));
+        assert_eq!(score_groups("{{<ab>},{<ab>},{<ab>},{<ab>}}"), Ok((9, 8)));
+        assert_eq!(score_groups("{{<!!>},{<!!>},{<!!>},{<!!>}}"), Ok((9, 0)));
+        assert_eq!(score_groups("{{<a!>},{<a!>},{<a!>},{<ab>}}"), Ok((3, 17)));
     }
 }
