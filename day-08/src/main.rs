@@ -10,13 +10,14 @@ fn main() -> Result<(), String> {
     let content = read_to_string(Path::new(&filename)).map_err(|e| e.to_string())?;
     let instructions = parse_instructions(&content)?;
 
-    let registers = execute_instructions(&instructions);
+    let (registers, max_reg_total) = execute_instructions(&instructions);
 
     if let Some(max_register) = max_register_value(&registers) {
         println!("Highest register value is {max_register}");
     } else {
         println!("There are no known registers after execution");
     }
+    println!("The maximum value that any register had during execution was {max_reg_total}");
 
     Ok(())
 }
@@ -130,18 +131,21 @@ fn parse_comp(input: &str) -> Result<Comp, String> {
     }
 }
 
-fn execute_instructions<'a>(instructions: &'a [Instruction]) -> HashMap<&'a str, i32> {
+fn execute_instructions<'a>(instructions: &'a [Instruction]) -> (HashMap<&'a str, i32>, i32) {
     let mut registers: HashMap<&str, i32> = HashMap::with_capacity(128);
+    let mut max_reg: i32 = 0;
     for instruction in instructions {
-        execute_instruction(instruction, &mut registers);
+        if let Some(changed) = execute_instruction(instruction, &mut registers) {
+            max_reg = max_reg.max(changed);
+        }
     }
-    registers
+    (registers, max_reg)
 }
 
 fn execute_instruction<'a, 'reg>(
     instruction: &'a Instruction,
     registers: &'reg mut HashMap<&'a str, i32>,
-) {
+) -> Option<i32> {
     let cond_reg_value = registers.get(instruction.cond_reg).copied().unwrap_or(0);
     if instruction
         .cond_comp
@@ -152,6 +156,9 @@ fn execute_instruction<'a, 'reg>(
             Operation::Inc => instruction.value,
             Operation::Dec => -instruction.value,
         };
+        Some(*register)
+    } else {
+        None
     }
 }
 
@@ -175,10 +182,11 @@ c inc -20 if c == 10
         let inst = parse_instructions(EXAMPLE).expect("Expected successful parsing");
 
         // when
-        let registers = execute_instructions(&inst);
+        let (registers, max_total) = execute_instructions(&inst);
         let max = max_register_value(&registers);
 
         // then
         assert_eq!(max, Some(1));
+        assert_eq!(max_total, 10);
     }
 }
