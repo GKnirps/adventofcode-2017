@@ -12,14 +12,33 @@ fn main() -> Result<(), String> {
     let severity = severity_of_immediate_trip(&layers);
     println!("The severity of the trip when you start right away is {severity}");
 
+    let delay = minimal_delay(&layers);
+    println!("The minimal delay to get though safely is {delay}");
+
     Ok(())
+}
+
+fn minimal_delay(layers: &[(u32, u32)]) -> u32 {
+    // let's just brute force it, that should work pretty well
+    let mut delay = 1;
+    while layers
+        .iter()
+        .any(|(layer, depth)| caught(*layer, *depth, delay))
+    {
+        delay += 1;
+    }
+    delay
+}
+
+fn caught(layer: u32, depth: u32, delay: u32) -> bool {
+    depth < 1 || (layer + delay) % ((depth - 1) * 2) == 0
 }
 
 fn severity_of_immediate_trip(layers: &[(u32, u32)]) -> u32 {
     layers
         .iter()
         .map(|(layer, depth)| {
-            if *depth < 1 || layer % ((depth - 1) * 2) == 0 {
+            if caught(*layer, *depth, 0) {
                 layer * depth
             } else {
                 0
@@ -65,5 +84,17 @@ mod test {
 
         // then
         assert_eq!(severity, 24);
+    }
+
+    #[test]
+    fn minimal_delay_should_work_for_example() {
+        // given
+        let layers = parse_input(EXAMPLE).expect("expected successful parsing");
+
+        // when
+        let delay = minimal_delay(&layers);
+
+        // then
+        assert_eq!(delay, 10);
     }
 }
