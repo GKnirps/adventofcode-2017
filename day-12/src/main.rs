@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::env;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -13,22 +12,49 @@ fn main() -> Result<(), String> {
     let zero_group_size = reachable_processes(&connections, 0);
     println!("In the group with program 0 are {zero_group_size} programs");
 
+    let n_groups = count_groups(&connections);
+    println!("There are {n_groups} groups");
+
     Ok(())
 }
 
+fn count_groups(connections: &[Box<[usize]>]) -> usize {
+    let mut queue: Vec<usize> = Vec::with_capacity(connections.len());
+    let mut visited: Vec<bool> = vec![false; connections.len()];
+    let mut group_count: usize = 0;
+
+    while let Some((start, _)) = visited.iter().enumerate().find(|(_, v)| !**v) {
+        group_count += 1;
+        queue.push(start);
+        while let Some(current) = queue.pop() {
+            if current >= connections.len() {
+                eprintln!("tried to connect to unknown program {current}, ignoring connection");
+                continue;
+            }
+            if !visited[current] {
+                for pipe in &connections[current] {
+                    queue.push(*pipe);
+                }
+            }
+            visited[current] = true;
+        }
+    }
+    group_count
+}
+
 fn reachable_processes(connections: &[Box<[usize]>], start: usize) -> usize {
-    let mut queue: VecDeque<usize> = VecDeque::with_capacity(connections.len());
+    let mut queue: Vec<usize> = Vec::with_capacity(connections.len());
     let mut visited: Vec<bool> = vec![false; connections.len()];
 
-    queue.push_back(start);
-    while let Some(current) = queue.pop_front() {
+    queue.push(start);
+    while let Some(current) = queue.pop() {
         if current >= connections.len() {
             eprintln!("tried to connect to unknown program {current}, ignoring connection");
             continue;
         }
         if !visited[current] {
             for pipe in &connections[current] {
-                queue.push_back(*pipe);
+                queue.push(*pipe);
             }
         }
         visited[current] = true;
@@ -74,25 +100,36 @@ fn parse_line(line: &str) -> Result<(usize, Box<[usize]>), String> {
 mod test {
     use super::*;
 
-    #[test]
-    fn reachable_processes_works_for_example() {
-        // given
-        let connections = parse_connections(
-            r#"0 <-> 2
+    static EXAMPLE: &str = r#"0 <-> 2
 1 <-> 1
 2 <-> 0, 3, 4
 3 <-> 2, 4
 4 <-> 2, 3, 6
 5 <-> 6
 6 <-> 4, 5
-"#,
-        )
-        .expect("expected successful parsing");
+"#;
+
+    #[test]
+    fn reachable_processes_works_for_example() {
+        // given
+        let connections = parse_connections(EXAMPLE).expect("expected successful parsing");
 
         // when
         let n = reachable_processes(&connections, 0);
 
         // then
         assert_eq!(n, 6);
+    }
+
+    #[test]
+    fn count_groups_works_for_example() {
+        // given
+        let connections = parse_connections(EXAMPLE).expect("expected successful parsing");
+
+        // when
+        let n = count_groups(&connections);
+
+        // then
+        assert_eq!(n, 2);
     }
 }
