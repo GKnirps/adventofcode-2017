@@ -7,10 +7,9 @@ fn main() -> Result<(), String> {
         .nth(1)
         .ok_or_else(|| "No file name given.".to_owned())?;
     let content = read_to_string(Path::new(&filename)).map_err(|e| e.to_string())?;
-    let dir_count = count_directions(&content)?;
+    let (distance_to_child, max_distance) = track_distance(&content)?;
 
-    let distance_to_child = distance(dir_count);
-    println!("The distance to the child process is {distance_to_child}");
+    println!("The distance to the child process is {distance_to_child}. The maximal distance was {max_distance}.");
 
     Ok(())
 }
@@ -73,11 +72,10 @@ struct DirCount {
     ne: u32,
 }
 
-fn count_directions(input: &str) -> Result<DirCount, String> {
-    input
-        .trim()
-        .split(',')
-        .try_fold(DirCount::default(), |mut count, dir| {
+fn track_distance(input: &str) -> Result<(u32, u32), String> {
+    let (end, max) = input.trim().split(',').try_fold(
+        (DirCount::default(), 0u32),
+        |(mut count, max), dir| {
             match dir {
                 "se" => {
                     count.se += 1;
@@ -101,8 +99,11 @@ fn count_directions(input: &str) -> Result<DirCount, String> {
                     return Err(format!("unknown direction: '{dir}'"));
                 }
             }
-            Ok(count)
-        })
+            let d = distance(count);
+            Ok((count, d.max(max)))
+        },
+    )?;
+    Ok((distance(end), max))
 }
 
 #[cfg(test)]
@@ -110,12 +111,12 @@ mod test {
     use super::*;
 
     #[test]
-    fn distance_works_for_examples() {
-        assert_eq!(distance(count_directions("ne,ne,ne").unwrap()), 3);
-        assert_eq!(distance(count_directions("ne,ne,sw,sw").unwrap()), 0);
-        assert_eq!(distance(count_directions("ne,ne,s,s").unwrap()), 2);
-        assert_eq!(distance(count_directions("se,sw,se,sw,sw").unwrap()), 3);
-        assert_eq!(distance(count_directions("n,ne,se,s,sw,nw").unwrap()), 0);
-        assert_eq!(distance(count_directions("n,n,sw,sw,ne,ne").unwrap()), 2);
+    fn track_distance_works_for_examples() {
+        assert_eq!(track_distance("ne,ne,ne").unwrap(), (3, 3));
+        assert_eq!(track_distance("ne,ne,sw,sw").unwrap(), (0, 2));
+        assert_eq!(track_distance("ne,ne,s,s").unwrap(), (2, 2));
+        assert_eq!(track_distance("se,sw,se,sw,sw").unwrap(), (3, 3));
+        assert_eq!(track_distance("n,ne,se,s,sw,nw").unwrap(), (0, 2));
+        assert_eq!(track_distance("n,n,sw,sw,ne,ne").unwrap(), (2, 2));
     }
 }
