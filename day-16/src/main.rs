@@ -1,9 +1,13 @@
 #![forbid(unsafe_code)]
 
+use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
 use std::path::Path;
 
+const INITIAL_PROGRAMS: [char; 16] = [
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
+];
 fn main() -> Result<(), String> {
     let filename = env::args()
         .nth(1)
@@ -11,20 +15,45 @@ fn main() -> Result<(), String> {
     let content = read_to_string(Path::new(&filename)).map_err(|e| e.to_string())?;
     let moves = parse_moves(&content)?;
 
-    let program_order = dance(&moves)?;
-    println!("after dancing, the programs are standing in order '{program_order}'");
+    let program_order = dance(&moves, INITIAL_PROGRAMS)?;
+    println!(
+        "after dancing, the programs are standing in order '{}'",
+        program_order.iter().collect::<String>()
+    );
+
+    let program_order = dance_billion(&moves, INITIAL_PROGRAMS)?;
+    println!("after dancing a billion times, the programs are standing in order '{program_order}'",);
 
     Ok(())
 }
 
-fn dance(moves: &[Move]) -> Result<String, String> {
-    let mut programs: [char; 16] = [
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-    ];
+fn dance_billion(moves: &[Move], mut programs: [char; 16]) -> Result<String, String> {
+    let mut order_cache: HashMap<[char; 16], usize> = HashMap::with_capacity(1024);
+    let mut previous_orders: Vec<[char; 16]> = Vec::with_capacity(1024);
+
+    order_cache.insert(programs, 0);
+    previous_orders.push(programs);
+
+    for i in 1..=1_000_000_000 {
+        programs = dance(moves, programs)?;
+        if let Some(prev_i) = order_cache.get(&programs) {
+            return Ok(
+                previous_orders[(1_000_000_000 - prev_i) % (i - prev_i) + prev_i]
+                    .iter()
+                    .collect(),
+            );
+        }
+        order_cache.insert(programs, i);
+        previous_orders.push(programs);
+    }
+    Ok(programs.iter().collect())
+}
+
+fn dance(moves: &[Move], mut programs: [char; 16]) -> Result<[char; 16], String> {
     for dance_move in moves {
         programs = run_move(*dance_move, programs)?;
     }
-    Ok(programs.iter().collect())
+    Ok(programs)
 }
 
 fn run_move(dance_move: Move, mut programs: [char; 16]) -> Result<[char; 16], String> {
