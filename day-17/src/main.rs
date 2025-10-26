@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use std::collections::VecDeque;
 use std::env;
 use std::fs::read_to_string;
 use std::path::Path;
@@ -17,18 +18,45 @@ fn main() -> Result<(), String> {
     let after_2017 = insert_2017(steps);
     println!("The value after 2017 is {after_2017}");
 
+    let after_50_mill = insert_50_mill(steps);
+    println!("The value after 0 is {after_50_mill}");
+
     Ok(())
 }
 
-fn insert_2017(steps: usize) -> usize {
-    let mut buffer: Vec<usize> = Vec::with_capacity(2018);
-    buffer.push(0);
-    let mut pos = 0;
-    for i in 1..=2017 {
-        pos = (pos + steps) % buffer.len() + 1;
-        buffer.insert(pos, i);
+fn insert_n(steps: usize, n: usize) -> VecDeque<usize> {
+    let mut buffer: VecDeque<usize> = VecDeque::with_capacity(n + 1);
+    buffer.push_back(0);
+    for i in 1..=n {
+        for _ in 0..steps {
+            let prev = buffer.pop_front().unwrap();
+            buffer.push_back(prev);
+        }
+        let prev = buffer.pop_front().unwrap();
+        buffer.push_back(prev);
+        buffer.push_front(i);
     }
-    buffer[(pos + 1) % buffer.len()]
+    buffer
+}
+
+fn insert_2017(steps: usize) -> usize {
+    let buffer = insert_n(steps, 2017);
+    *buffer
+        .iter()
+        .skip_while(|v| **v != 2017)
+        .nth(1)
+        .or(buffer.front())
+        .expect("expected to find 2017")
+}
+
+fn insert_50_mill(steps: usize) -> usize {
+    let buffer = insert_n(steps, 50_000_000);
+    *buffer
+        .iter()
+        .skip_while(|v| **v != 0)
+        .nth(1)
+        .or(buffer.front())
+        .expect("expected to find 0")
 }
 
 #[cfg(test)]
